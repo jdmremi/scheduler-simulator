@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python
 
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
@@ -225,11 +225,12 @@ def main() -> None:
     
     scheduler: Scheduler = Scheduler(args.quantum)
 
-    match(args.algorithm):
-        case "rr":
-            scheduler.set_scheduling_func(scheduler.scheduler_rr)
-        case "srtn":
-            scheduler.set_scheduling_func(scheduler.scheduler_srtn)
+    if args.algorithm == "rr":
+        scheduler.set_scheduling_func(scheduler.scheduler_rr)
+    elif args.algorithm == "srtn":
+        scheduler.set_scheduling_func(scheduler.scheduler_srtn)
+    else:
+        scheduler.set_scheduling_func(scheduler.scheduler_fifo)
     
     scheduler.submit_jobs(Job.read_jobs(args.file))
     scheduler.start_scheduler()

@@ -4,96 +4,96 @@ from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 
 class Job:
-    def __init__(self, arrival_time: int, run_time: int, job_number: int):
-        self.arrival_time: int = arrival_time
-        self.remaining_burst_time: int = run_time
-        self.total_run_time: int = run_time
-        self.job_number: int = job_number
+    def __init__(self, arrival_time, run_time, job_number):
+        self.arrival_time = arrival_time
+        self.remaining_burst_time = run_time
+        self.total_run_time = run_time
+        self.job_number = job_number
         # set by scheduling algorithm
-        self.first_time_running: int = -1
-        self.completion_time: int = -1
-        self.is_first_run: bool = True
+        self.first_time_running = -1
+        self.completion_time = -1
+        self.is_first_run = True
 
-    def get_first_time_running(self) -> int:
+    def get_first_time_running(self):
         return self.first_time_running
-    def set_first_time_running(self, time: int) -> None:
+    def set_first_time_running(self, time):
         self.first_time_running = time
-    def is_first_time_running(self) -> bool:
+    def is_first_time_running(self):
         return self.is_first_run
-    def set_is_first_time_running(self, value: bool) -> None:
+    def set_is_first_time_running(self, value):
         self.is_first_run = value
-    def get_completion_time(self) -> int:
+    def get_completion_time(self):
         return self.completion_time
-    def set_completion_time(self, time: int) -> None:
+    def set_completion_time(self, time):
         self.completion_time = time
-    def update_completion_time_by(self, diff: int) -> None:
+    def update_completion_time_by(self, diff):
         self.completion_time += diff
-    def get_remaining_burst_time(self) -> int:
+    def get_remaining_burst_time(self):
         return self.remaining_burst_time
-    def set_remaining_burst_time(self, time: int) -> None:
+    def set_remaining_burst_time(self, time):
         self.remaining_burst_time = time
-    def update_remaining_burst_time_by(self, diff: int) -> None:
+    def update_remaining_burst_time_by(self, diff):
         self.remaining_burst_time += diff
-    def get_arrival_time(self) -> int:
+    def get_arrival_time(self):
         return self.arrival_time
-    def get_job_number(self) -> int:
+    def get_job_number(self):
         return self.job_number
     # turnaround time = completion time - arrival time (time between job arrival and job completion)
-    def compute_turnaround_time(self) -> float:
+    def compute_turnaround_time(self):
         return self.completion_time - self.arrival_time
     # response time   = first run time  - arrival time (time until a job starts producing results)
-    def compute_response_time(self) -> float:
+    def compute_response_time(self):
         return self.first_time_running - self.arrival_time
     # wait time       = turnaround time - run time   (time spent in the ready queue waiting to run)
-    def compute_wait_time(self) -> float:
+    def compute_wait_time(self):
         return self.compute_turnaround_time() - self.total_run_time
-    def __str__(self) -> str:
+    def __str__(self):
         return f"-------- Job {self.job_number} --------\n" + f"Arrival Time: {self.arrival_time}\n" + f"First Time Running: {self.first_time_running}\n" + f"Completion Time: {self.completion_time}\n" + f"Run (Burst) Time: {self.total_run_time}\n"
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"Job(number = {self.job_number}, arrival = {self.arrival_time}, burst = {self.remaining_burst_time})"
-    def __lt__(self, other: Job):
+    def __lt__(self, other):
         return self.get_arrival_time() < other.get_arrival_time()
     @staticmethod
-    def read_jobs(input_file: str) -> list[Job]:
+    def read_jobs(input_file):
         with open(input_file, "r") as file:
-            lines: list[list[str]] = [line.split(" ") for line in file.readlines()]
-            jobs: list[Job] = []
+            lines = [line.split(" ") for line in file.readlines()]
+            jobs = []
             for index, job in enumerate(lines):
                 jobs.append(Job(run_time=int(job[0]), arrival_time=int(job[1]), job_number=index))
             jobs.sort(key= lambda job: job.arrival_time)
         return jobs
 
 class Scheduler:
-    def __init__(self, quantum: int) -> None:
-        self.job_list: list[Job] = []
-        self.completed_jobs: list[Job] = []
-        self.num_jobs: int = 0
-        self.num_jobs_completed: int = 0
+    def __init__(self, quantum):
+        self.job_list = []
+        self.completed_jobs = []
+        self.num_jobs = 0
+        self.num_jobs_completed = 0
         self.schedule = self.scheduler_fifo
-        self.quantum: int = quantum
-        self.total_time: int = 0
-        self.print_str: str = ""
+        self.quantum = quantum
+        self.total_time = 0
+        self.print_str = ""
     
-    def submit_jobs(self, jobs: list[Job]) -> None:
+    def submit_jobs(self, jobs):
         for job in jobs:
             self.job_list.append(job)
             self.num_jobs += 1
 
-    def set_scheduling_func(self, schedule_func) -> None:
+    def set_scheduling_func(self, schedule_func):
         self.schedule = schedule_func
 
-    def start_scheduler(self) -> None:
+    def start_scheduler(self):
         self.schedule()
     
-    def scheduler_fifo(self) -> None:
+    def scheduler_fifo(self):
 
         if len(self.job_list) == 0:
             return
 
-        current_job_index: int = 0
+        current_job_index = 0
 
         while self.num_jobs != self.num_jobs_completed:
-            scheduled: Job = self.job_list[current_job_index]
+            scheduled = self.job_list[current_job_index]
             if self.total_time < scheduled.get_arrival_time():
                 self.total_time += 1
                 self.print_str += "[--]"
@@ -113,12 +113,12 @@ class Scheduler:
             current_job_index += 1
 
         
-    def scheduler_rr(self) -> None:
+    def scheduler_rr(self):
         if len(self.job_list) == 0:
             return
-        current_job_index: int = 0
+        current_job_index = 0
         while self.num_jobs != self.num_jobs_completed:
-            scheduled: Job = self.job_list[current_job_index]
+            scheduled = self.job_list[current_job_index]
             if self.total_time < scheduled.get_arrival_time():
                 self.total_time += 1
                 self.print_str += "[--]"
@@ -149,11 +149,11 @@ class Scheduler:
             else:
                 current_job_index += 1
 
-    def scheduler_srtn(self) -> None:
+    def scheduler_srtn(self):
         if len(self.job_list) == 0:
             return
         # sort by arrival time then by remaining burst time
-        scheduled: Job = min(self.job_list, key=lambda job: job.get_arrival_time())
+        scheduled = min(self.job_list, key=lambda job: job.get_arrival_time())
         while self.num_jobs != self.num_jobs_completed:
             if self.total_time < scheduled.get_arrival_time():
                 self.total_time += 1
@@ -171,7 +171,7 @@ class Scheduler:
                 self.total_time += 1
                 self.print_str += f"[P{scheduled.get_job_number()}]"
                 # find the next job whose arrival was either before the current one or at the current tick.
-                filtered_jobs: list[Job] = list(filter(lambda job: job.get_arrival_time() <= self.total_time and job.get_remaining_burst_time() > 0, self.job_list))
+                filtered_jobs = list(filter(lambda job: job.get_arrival_time() <= self.total_time and job.get_remaining_burst_time() > 0, self.job_list))
                 # if job is complete, add it to list
                 if scheduled.get_remaining_burst_time() == 0:
                     scheduled.set_completion_time(self.total_time)
@@ -190,20 +190,20 @@ class Scheduler:
             """
 
 
-    def stat(self) -> None:
+    def stat(self):
         self.completed_jobs.sort(key=lambda job: job.job_number)
         for job in self.completed_jobs:
             # print(job)
             print(f"Job {job.job_number:3d} -- Turnaround {job.compute_turnaround_time():3.2f}  Wait {job.compute_wait_time():3.2f}")
-        turnaround_average: float = sum([job.compute_turnaround_time() for job in self.completed_jobs]) / len(self.completed_jobs)
-        waiting_average: float = sum([job.compute_wait_time() for job in self.completed_jobs]) / len(self.completed_jobs)
+        turnaround_average = sum([job.compute_turnaround_time() for job in self.completed_jobs]) / len(self.completed_jobs)
+        waiting_average = sum([job.compute_wait_time() for job in self.completed_jobs]) / len(self.completed_jobs)
         print(f"Average -- Turnaround {turnaround_average:3.2f}  Wait {waiting_average:3.2f}")
         # print(self.print_str)
 
-def main() -> None:
+def main():
     # argument setup
 
-    debug: bool = False
+    debug = False
 
     @dataclass
     class NamespaceDebug:
@@ -211,19 +211,17 @@ def main() -> None:
         algorithm: str
         quantum: int
 
-    args: Namespace | NamespaceDebug | None = None
-
     if debug:
        args = NamespaceDebug(file="/Users/remi/Documents/School/csc453/assignment2/srtn1.txt", algorithm="srtn", quantum=4) 
     else:
-        parser: ArgumentParser = ArgumentParser()
+        parser = ArgumentParser()
         parser.add_argument("file", type=str, default="job_list.txt")
         # file: str = "./fcfs1.txt"
         parser.add_argument("-p", "--algorithm", required=False, type=str.lower, default="fifo", choices=["fifo", "rr", "srtn"])
         parser.add_argument("-q",  "--quantum", required=False, type=int, default=1)
         args = parser.parse_args()
     
-    scheduler: Scheduler = Scheduler(args.quantum)
+    scheduler = Scheduler(args.quantum)
 
     if args.algorithm == "rr":
         scheduler.set_scheduling_func(scheduler.scheduler_rr)

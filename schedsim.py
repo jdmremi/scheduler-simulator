@@ -3,16 +3,13 @@ from argparse import ArgumentParser
 
 class Job:
     def __init__(self, arrival_time, run_time, job_number):
-        self.arrival_time              = arrival_time
-        self.remaining_burst_time      = run_time
-        self.total_run_time            = run_time
-        self.job_number                = job_number
-        self.first_run_time            = -1
-        self.completion_time           = -1
-        self.is_first_run              = True
-        # turnaround time              = completion time - arrival time (time between job arrival and job completion)
-        # response time                = first run time  - arrival time (time until a job starts producing results)
-        # wait time                    = turnaround time - run time     (time spent in the ready queue waiting to run)
+        self.arrival_time              = arrival_time # job arrival time
+        self.remaining_burst_time      = run_time     # remaining burst time
+        self.total_run_time            = run_time     # original (total) burst time 
+        self.job_number                = job_number   # job number
+        self.first_run_time            = -1           # the first time the job runs (default = -1 => job has not yet run)
+        self.completion_time           = -1           # job completion time
+        self.is_first_run              = True         # whether the job has been scheduled at least once
         self.calculate_turnaround_time = lambda: self.completion_time             - self.arrival_time
         self.calculate_response_time   = lambda: self.first_run_time              - self.arrival_time
         self.calculate_wait_time       = lambda: self.calculate_turnaround_time() - self.total_run_time
@@ -26,22 +23,24 @@ class Job:
     @staticmethod
     def read_jobs(input_file):
         with open(input_file, "r") as file:
-            lines = sorted([line.split(" ") for line in file.readlines()], key=lambda token: int(token[1]))
+            # sort jobs based on their arrival times. by default, sorted() will pick the first item in the list if any two jobs have the same arrival time.
+            lines = sorted([line.split(" ") for line in file.readlines()], key=lambda token: int(token[1])) 
             jobs  = [Job(run_time=int(job[0]), arrival_time=int(job[1]), job_number=i) for i, job in enumerate(lines)]
             return jobs
 
 class Scheduler:
     def __init__(self, quantum, job_list):
-        self.jobs              = []
-        self.completed_jobs    = []
-        self.print_str         = ""
-        self.fifo_srtn_current = 0
-        self.total_time        = 0
-        self.quantum           = max(1, quantum)
-        self.scheduler         = self.scheduler_fifo
-        self.jobs.extend(job_list)
+        self.jobs              = []                  # list of all jobs
+        self.completed_jobs    = []                  # list of completed jobs
+        self.print_str         = ""                  # used for debugging/visualization
+        self.fifo_srtn_current = 0                   # index for keeping track of current job in fifo/srtn
+        self.total_time        = 0                   # total elapsed time
+        self.quantum           = max(1, quantum)     # quantum length for rr. defaults to 1 if negative
+        self.scheduler         = self.scheduler_fifo # default scheduler = fifo (fcfs)
+        self.jobs.extend(job_list)                   # add all provided jobs to job list
 
     def start_scheduler(self):
+        # run the scheduler if size of job list is greater than 0.
         if len(self.jobs):
             self.scheduler()
 
@@ -50,32 +49,32 @@ class Scheduler:
             scheduled = self.jobs[self.fifo_srtn_current]
             if not self.__scheduled_job_has_arrived(scheduled):
                 continue
-            
-            scheduled.update_first_run(self.total_time)
+
+            scheduled.update_first_run(self.total_time) # update first run time 
             self.__update_print_str(scheduled.job_number, scheduled.remaining_burst_time)
-            self.total_time                += scheduled.remaining_burst_time
-            scheduled.completion_time      = self.total_time
-            scheduled.remaining_burst_time = 0
+            self.total_time                += scheduled.remaining_burst_time # update total elapsed time
+            scheduled.completion_time      = self.total_time                 # set job completion time to be updated total time
+            scheduled.remaining_burst_time = 0                               # for consistency, set its remaining burst to 0
             self.completed_jobs.append(scheduled)
             self.fifo_srtn_current += 1
         
     def scheduler_rr(self):
         while len(self.jobs) != len(self.completed_jobs):
             scheduled = self.jobs[self.fifo_srtn_current]
+            # if the job hasn't arrived yet, go to next tick
             if not self.__scheduled_job_has_arrived(scheduled):
                 continue
             
-            scheduled.update_first_run(self.total_time)
-
+            scheduled.update_first_run(self.total_time) # update first run time
             remaining_burst = scheduled.remaining_burst_time
-            # if remaining burst in (0, self.quantum], run to completion. otherwise, run a slice.
-            if remaining_burst <= self.quantum and remaining_burst > 0:
+            if remaining_burst <= self.quantum and remaining_burst > 0: # if remaining burst in (0, self.quantum], run to completion.
                 self.__update_print_str(scheduled.job_number, remaining_burst)
-                self.total_time                += remaining_burst
-                scheduled.completion_time      = self.total_time
-                scheduled.remaining_burst_time = 0
+                self.total_time                += remaining_burst # add remaining burst to total time
+                scheduled.completion_time      = self.total_time  # set job completion time to be updated total time
+                scheduled.remaining_burst_time = 0                # again, for consistency, set remaining burst to 0 and then add to list of completed jobs
                 self.completed_jobs.append(scheduled)
             elif remaining_burst > 0:
+                # otherwise, update total elapsed time and decrement remaining burst time by quantum length
                 self.__update_print_str(scheduled.job_number, self.quantum)
                 self.total_time                += self.quantum
                 scheduled.remaining_burst_time -= self.quantum
@@ -90,13 +89,12 @@ class Scheduler:
                 continue
 
             scheduled.update_first_run(self.total_time)
-            # update ticker/job
+            # if
             if scheduled.remaining_burst_time > 0:
                 self.__update_print_str(scheduled.job_number, 1)
-                self.total_time                += 1
-                scheduled.remaining_burst_time -= 1
-                # if scheduled job is complete, add it to list
-                if scheduled.remaining_burst_time == 0:
+                self.total_time                += 1     # increment ticker by 1
+                scheduled.remaining_burst_time -= 1     # decrement job remaining burst time by 1
+                if scheduled.remaining_burst_time == 0: # if scheduled job is complete, set its completion time to 0 add it to list of completed jobs
                     scheduled.completion_time = self.total_time
                     self.completed_jobs.append(scheduled)
                 # each tick, find the next job whose arrival time is either before the current one or at the current tick, with a remaining burst time > 0.
@@ -126,7 +124,7 @@ class Scheduler:
 def main():
     parser = ArgumentParser()
     parser.add_argument("file", help="the job file to be used", type=str, default="job_list.txt")
-    parser.add_argument("-p", "--algorithm", help="the scheduling algorithm to be used", required=False, type=str.lower, default="fifo", choices=["fifo", "rr", "srtn"])
+    parser.add_argument("-p", "--algorithm", help="the scheduling algorithm to be used (rr, srtn, fifo). defaults to fifo", required=False, type=str.lower, default="fifo")
     parser.add_argument("-q",  "--quantum", help="the quantum to be used (required for rr). defaults to 1", required=False, type=int, default=1)
     args = parser.parse_args()
 

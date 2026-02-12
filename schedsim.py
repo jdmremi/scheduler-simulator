@@ -76,9 +76,9 @@ class Scheduler:
                 scheduled.remaining_burst_time = 0
                 self.completed_jobs.append(scheduled)
             elif remaining_burst > 0:
+                self.__update_print_str(scheduled.job_number, self.quantum)
                 self.total_time                += self.quantum
                 scheduled.remaining_burst_time -= self.quantum
-                self.__update_print_str(scheduled.job_number, self.quantum)
 
             # update next job index (and wrap around if necessary)
             self.fifo_srtn_current = (self.fifo_srtn_current + 1) % len(self.jobs)
@@ -93,8 +93,8 @@ class Scheduler:
             # update ticker/job
             if scheduled.remaining_burst_time > 0:
                 self.__update_print_str(scheduled.job_number, 1)
-                scheduled.remaining_burst_time -= 1
                 self.total_time                += 1
+                scheduled.remaining_burst_time -= 1
                 # if scheduled job is complete, add it to list
                 if scheduled.remaining_burst_time == 0:
                     scheduled.completion_time = self.total_time
